@@ -1,0 +1,76 @@
+#:kivy 1.10.1
+
+<LoadDialog>:
+    filechooser: filechooser
+    BoxLayout:
+        size: root.size
+        pos: root.pos
+        orientation: "vertical"
+        FileChooserIconView:
+            path: root.path
+            id: filechooser
+            multiselect: True
+
+        BoxLayout:
+            size_hint_y: None
+            height: 30
+            Button:
+                text: "Cancel"
+                on_release: root.cancel()
+
+            Button:
+                text: "Load"
+                on_release: root.load(filechooser.selection)
+
+<LoadTarDialog>:
+    filechooser: filechooser
+    BoxLayout:
+        size: root.size
+        pos: root.pos
+        orientation: "vertical"
+        FileChooserListView:
+            path: root.path
+            id: filechooser
+            multiselect: False
+
+        BoxLayout:
+            size_hint_y: None
+            height: 30
+            Button:
+                text: "Cancel"
+                on_release: root.cancel()
+
+            Button:
+                text: "Load"
+                on_release: root.load(filechooser.selection)
+
+<SaveDialog>:
+    text_input: text_input
+    filechooser: filechooser
+
+    BoxLayout:
+        size: root.size
+        pos: root.pos
+        orientation: "vertical"
+        FileChooserListView:
+            path: root.path
+            id: filechooser
+            #on_selection: text_input.text = self.selection and self.selection[0] or ''
+            on_selection: text_input.text = root.getFilechooserSelectionName()
+
+        TextInput:
+            id: text_input
+            size_hint_y: None
+            height: 60
+            multiline: False
+
+        BoxLayout:
+            size_hint_y: None
+            height: 30
+            Button:
+                text: "Cancel"
+                on_release: root.cancel()
+
+            Button:
+                text: "Create"
+                on_release: root.save(filechooser.path, text_input.text)

@@ -1,0 +1,273 @@
+#:kivy 1.10.1
+
+<FileListCell>:
+    filePath: './'
+    # Draw a background to indicate selection
+    #size: root.width*0.9, root.height*0.9
+    Label:
+        canvas.before:
+            Color:
+                rgba: (.0,191/255, 1, .8)
+            Line:
+                width: 2
+                rectangle: self.x, self.y, self.width, self.height
+            Color:
+                rgba: (.0, 0.9, 1, .2) if root.selected else (0, 0, 0, 1)
+            Rectangle:
+                pos: self.pos
+                size: self.size
+        text: root.getBaseName(root.filePath)
+        BoxLayout:
+            #pos_x:  root.x
+            #pos_y: root.y
+            pos: [root.x, root.y]
+            size: [250,50]
+            size_hint: None, None
+            opacity: 50 if root.selected else 0
+            disabled: False if root.selected else True
+
+            Button:
+                text: '-'
+                on_release: root.deleteClicked()
+            Button:
+                text: '2'
+
+            Button:
+                text: '3'
+
+            Button:
+                text: '4'
+
+            Button:
+                text: '5'
+<FileList>:
+    viewclass: 'FileListCell'
+    SelectableRecycleBoxLayout:
+        default_size: None, dp(56)
+        default_size_hint: 1, None
+        size_hint_y: None
+        height: self.minimum_height
+        orientation: 'vertical'
+        multiselect: False
+        touch_multiselect: False
+
+<RVKeyboard>:
+    viewclass: 'rvkLabel'
+    SelectableRecycleGridLayout:
+        rows: 2
+        default_size: dp(80), dp(80)  # 80, 80
+        default_size_hint: None, None #  None, None
+        #padding: 20, 20
+        #spacing: 50,50
+        size_hint_x: None
+        width: self.minimum_width
+        height: self.minimum_height
+        orientation: 'horizontal'
+        multiselect: False
+        touch_multiselect: False
+
+<rvkLabel>:
+    # properties
+    filePath: []
+    key: ''
+    name: ''
+
+    BoxLayout:
+        padding: 4,4
+        orientation: 'vertical'
+        size: root.width*0.9, root.height*0.9
+        center: root.center
+
+        canvas.before:
+            Color:
+                rgba: (.0,191/255, 1, .8)
+            Line:
+                width: 2
+                rectangle: self.x, self.y, self.width, self.height
+
+            Color:
+                rgba: (.0, 0.9, 1, .2) if root.selected else (0, 0, 0, 1)
+            Rectangle:
+                pos: self.pos
+                size: self.size
+
+        Label:
+            text: root.key
+            halign: 'left'
+            color: (.0,191/255, 1, .8)
+            #size: root.width, 20
+            size_hint: 0.3, 0.3
+
+
+        Label:
+            text: root.name
+            text_size: self.width, self.height
+            color: (.0,191/255, 1, 1)
+            halign: 'center'
+            valign: 'center'
+            size_hint: 1,0.7
+
+<KeyboardSetScreen>:
+    rvk:rvk
+    ic:ic
+    fl:fl
+    kLabel: kLabel
+    soundPackDetail: soundPackDetail
+    filechooser: filechooser
+    filechooserRoot: './'
+    name_input: name_input
+
+    BoxLayout:
+        orientation: 'vertical'
+
+        on_touch_down:
+            root.touchDownEvent([*args[1].pos])
+
+        on_touch_up:
+            root.touchUpEvent([*args[1].pos])
+
+        BoxLayout:
+            canvas.before:
+                Color:
+                    rgba: 0.5, 0.5, 0.5, 1
+                Rectangle:
+                    size: self.size
+                    pos: self.pos
+
+            size_hint_y: None
+            height: 30
+
+            Button:
+                text: 'Back'
+                on_release:
+                    root.switchToStageShow()
+
+            Button:
+                text: 'load'
+                on_release:
+                    root.show_load()
+
+            Button:
+                text: 'save'
+                on_release:
+                    root.rv.saveByPath()
+
+            Button:
+                text: '4'
+
+            Button:
+                text: '5'
+        #GridLayout:
+        #    rows: 2
+        #    cols: 1
+        BoxLayout:
+            orientation: 'vertical'
+            size_hint_y: 1
+            #padding: dp(8)
+            #spacing: dp(16)
+
+            BoxLayout:
+                orientation: 'horizontal'
+
+                RVKeyboard:
+                    rootPath: root.filechooserRoot
+                    id:rvk
+                    delegate: root
+                    size_hint: 0.7,1
+                BoxLayout:
+
+                    id: soundPackDetail
+
+                    #disabled: True
+                    canvas.before:
+                        Color:
+                            rgba: (.0,191/255, 1, .8)
+                        Line:
+                            width: 2
+                            rectangle: self.x, self.y, self.width, self.height
+
+                        Color:
+                            rgba: 0, 0, 0, 1
+                        Rectangle:
+                            size: self.size
+                            pos: self.pos
+                    orientation: 'vertical'
+                    size_hint: 0.3,1
+
+                    BoxLayout:
+                        orientation: 'horizontal'
+                        height: 100
+                        size_hint: 1, None
+
+                        BoxLayout:
+                            padding: [10]
+                            width: 100
+                            size_hint: None, 1
+
+                            KeyLabel:
+                                id: kLabel
+                                text: ''
+                                delegate: root
+                                color: (.0, 0.9, 1, 1)
+                                halign: 'center'
+                                valign: 'center'
+                                size_hint: 1,1
+
+                                canvas.before:
+                                    Color:
+                                        rgba: (.0,191/255, 1, .8)
+                                    Line:
+                                        width: 2
+                                        rectangle: self.x, self.y, self.width, self.height
+
+                                    Color:
+                                        rgba: (.0, 0.9, 1, .2) if self.selected else (0, 0, 0, 1)
+                                    Rectangle:
+                                        pos: self.pos
+                                        size: self.size
+
+                        BoxLayout:
+                            size_hint: 1,1
+                            padding: [10]
+                            SPDName:
+
+                                id: name_input
+                                text: 'No selection'
+                                halign: 'center'
+                                valign: 'center'
+                                multiline: False
+                                delegate: root
+                                size_hint: 1,1
+
+
+                    FileList:
+                        id: fl
+                        data: []
+                        delegate: root
+
+            CustomFileChooser:
+                id: filechooser
+                rootpath: root.filechooserRoot
+                path: root.filechooserRoot
+                #pattern: ['*.wav']
+
+                canvas.before:
+                    Color:
+                        rgba:(0, 0, 0, 1)
+                    Rectangle:
+                        size: self.size
+                        pos: self.pos
+
+                on_selection:
+                    root.saveFileToRVK(self.selection)
+
+
+    FloatLayout:
+        #size: 30, 30
+        Button:
+            id: ic
+            opacity: 1 if root.fileSelected else 0
+            text: 'music'
+            size: 100,100
+            size_hint: None, None
+            center: 20,20
