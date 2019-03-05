@@ -1,0 +1,1 @@
+[{"filePath": "/private/var/folders/h0/4z_nb1v95f72c014_drw7nnw0000gq/T/tmpp2fjnsik/img/stage.png", "enterBGM": "1"}, {"filePath": "/private/var/folders/h0/4z_nb1v95f72c014_drw7nnw0000gq/T/tmpp2fjnsik/img/stage.png", "enterBGM": "1"}]

@@ -3,6 +3,7 @@
 #:include StageSetScreen.kv
 #:include FileChooserDialog.kv
 #:include ShowMode.kv
+#:include CustomDropDown.kv
 
 <myLabel>:
     key: '##'
@@ -49,6 +50,7 @@
     rv:rv
     rvk:rvk
     ic:ic
+    fileBtn: fileBtn
 
     BoxLayout:
         orientation: 'vertical'
@@ -71,44 +73,88 @@
             height: 30
 
             Button:
-                text: 'Show Mode'
+                size_hint_x: None
+                width: 100
+                id: fileBtn
+                text: 'File'
+                on_release:
+                    root.showFileDropList()
+
+            Button:
+                size_hint_x: None
+                width: 100
+                text: 'Play'
                 on_press:
                     root.switchToShowMode()
 
-            Button:
-                text: 'Stage Settings'
-                on_press:
-                    root.switchToStageSettings()
-
-            Button:
-                text: 'Load'
-                on_release:
-                    root.show_load()
-
-            Button:
-                text: 'Create'
-                on_press:
-                    root.show_save()
-
-            Button:
-                text: 'Keyboard Settings'
-                on_press:
-                    root.switchToKeyboardSetScreen()
-
-            Button:
-                text: '+'
-                on_release: print(root.rv.add())
         BoxLayout:
             orientation: 'vertical'
             size_hint: 1,1
             #padding: dp(8)
             #spacing: dp(16)
 
+            AnchorLayout:
+                size_hint_y: None
+                height: 100
+                anchor_x:'right'
+                anchor_y:'bottom'
+                BoxLayout:
+                    size_hint: None, None
+                    width: 200
+                    height: 50
+                    Button:
+                        color: (.0,191/255, 1, .8)
+                        background_normal: ''
+                        background_color: (0, 0, 0, 1)
+                        background_down: ''
+                        on_press:
+                            self.color = (.0,191/255, 1, 1)
+                        on_release:
+                            self.color = (.0,191/255, 1, 0.8)
+                            root.rv.add()
+                        size_hint_y:1
+                        text: '+'
+                    Button:
+                        color: (.0,191/255, 1, .8)
+                        background_normal: ''
+                        background_color: (0, 0, 0, 1)
+                        background_down: ''
+                        on_press:
+                            self.color = (.0,191/255, 1, 1)
+                            root.switchToStageSettings()
+                        on_release: self.color = (.0,191/255, 1, 0.8)
+                        size_hint_y: 1
+                        text: 'Edit'
+
             RV:
                 id:rv
                 delegate: root
-                size_hint: 1,0.6
+                size_hint_y: 0.4
+                size_hint_x: 1
                 viewclass: 'SelectableLabel'
+
+            AnchorLayout:
+                size_hint_y: None
+                height: 100
+                anchor_x:'right'
+                anchor_y:'bottom'
+
+
+                Button:
+                    color: (.0,191/255, 1, .8)
+                    background_normal: ''
+                    background_color: (0, 0, 0, 1)
+                    background_down: ''
+                    on_press:
+                        self.color = (.0,191/255, 1, 1)
+                        root.switchToKeyboardSetScreen()
+                    on_release: self.color = (.0,191/255, 1, 0.8)
+                    size_hint_x: None
+                    size_hint_y: None
+                    height: 50
+                    width: 100
+                    text: 'Edit'
+                    #on_release:
 
             RVKeyboard:
                 id:rvk

@@ -15,11 +15,13 @@ import json
 import shutil
 import atexit
 
-from KeyboardSetScreen import KeyboardSetScreen, RVKeyboardDelegate, rvkLabel
+from KeyboardSetScreen import KeyboardSetScreen
+from RVKeyboard import *
 from StageSetScreen import StageSetScreen
 from ShowMode import ShowMode
 from TarfileHandler import TarfileHandler
 from FileChooserDialog import SaveDialog, LoadTarDialog
+from CustomDropDown import CustomDropDown, DropDownDelegate
 
 class CustomFileChooser(FileChooserIconView):
 
@@ -38,6 +40,12 @@ class CustomFileChooser(FileChooserIconView):
             if len(selectedFiles)>0:
                 return self.parent.parent.parent.saveFileToRV(selectedFiles[0])
     '''
+class SoundPack():
+
+    def __init__(self, isMusic, sounds, index):
+            self.isMusic = isMusic  # Bool
+            self.sounds = sounds  # [pygame.mixer.Sound(file)]
+            self.index = index  # int
 
 class showData():
     def __init__(self, tempDir, tarFile, imgData, bgmData):
@@ -54,13 +62,15 @@ class myLabel(Button):
     def __init__(self,**kwargs):
         super(myLabel, self).__init__(**kwargs)
 
-class StageShow(Screen, Widget, RVKeyboardDelegate):
+class StageShow(Screen, Widget, RVKeyboardDelegate, DropDownDelegate):
 
     stageSetScreen = ObjectProperty(None)
     keySetScreen = ObjectProperty(None)
     showModeScreen = ObjectProperty(None)
+    fileBtn = ObjectProperty(None)
     keySelected = BooleanProperty(False)
     inTouchDown = BooleanProperty(False)
+    dropDownTest = CustomDropDown()
 
     tarfileHandler = TarfileHandler()
 
@@ -89,7 +99,7 @@ class StageShow(Screen, Widget, RVKeyboardDelegate):
 
         self._keyboard.bind(on_key_down=self._on_keyboard_down)
         #self.soundPacks = self.createSoundlist(self.rvk.data)
-        self.soundPackDict = self.createSoundPackDict(self.rvk.data)
+        self.soundPackDict = self.createPygameSounds(self.rvk.data)
 
     # MARK: Touch Events
     def touchDownEvent(self, pos):
@@ -130,9 +140,17 @@ class StageShow(Screen, Widget, RVKeyboardDelegate):
         '''
         soundPack = self.soundPackDict.get(keycode[1], None)
 
-        if soundPack and len(soundPack.sounds):
+        if keycode[1] == 'spacebar':
+            pygame.mixer.stop()
+        elif soundPack and len(soundPack.sounds):
+            print('Index is: ')
+            print(soundPack.index)
+            lm = self.rvk.layout_manager
+            print(lm.get_selectable_nodes())
+            lm.clear_selection()
             audio = random.choice(soundPack.sounds)
             if soundPack.isMusic:
+                # Use the self.soundChannel so that no new channel will be used <- one music at a time!
                 self.soundChannel.play(audio)
             else:
                 audio.play()
@@ -165,9 +183,21 @@ class StageShow(Screen, Widget, RVKeyboardDelegate):
         else:
             self._keyboard.unbind(on_key_down=self._on_keyboard_down)
 
-    # MARK: Navigation Methods
+    # MARK: Navigation Bar Methods
+
+    def showFileDropList(self):
+        print('show drop list')
+        dropdown = CustomDropDown()
+        dropdown.delegate = self
+        dropdown.open(self.fileBtn)
+        #self.dropDownTest.open(self.rv)
+
+    def rewindFromKeySetScreen(self):
+        self.soundPackDict = self.createPygameSounds(self.rvk.data)
+        self.bindKeyboard(True)
 
     def switchToStageSettings(self):
+        # switch to the screen for setting BGI
         self.bindKeyboard(False)
         self.stageSetScreen.rv.data = self.rv.data
         self.manager.transition.direction = 'left'
@@ -175,6 +205,7 @@ class StageShow(Screen, Widget, RVKeyboardDelegate):
         self.manager.current = 'stagesettings'
 
     def switchToKeyboardSetScreen(self):
+        # switch to the screen for setting hotkeys for BGMs and sound effects
         self.bindKeyboard(False)
         self.keySetScreen.rvk.data = self.rvk.data
         self.manager.transition.direction = 'left'
@@ -182,6 +213,10 @@ class StageShow(Screen, Widget, RVKeyboardDelegate):
         self.manager.current = 'keyboardset'
 
     def switchToShowMode(self):
+        '''
+        switch to PPT mode, fullscreen BGI and hide hotkey table
+        :return:
+        '''
         # stop keyboard interaction
         self.bindKeyboard(False)
 
@@ -196,187 +231,59 @@ class StageShow(Screen, Widget, RVKeyboardDelegate):
         self.manager.transition.mode = 'push'
         self.manager.current = 'showmode'
 
-    def createSoundlist(self, soundPacks):
+    # Mark: Preparing Soundpack Methods
+
+    def createPygameSounds_obsolete(self, soundPacks):
         list = []
         for soundPack in soundPacks:
             sounds = []
-            for file in soundPack['filePath']:
-                sounds.append(pygame.mixer.Sound(file))
+            for sound in soundPack['soundlist']:
+                new_sound = pygame.mixer.Sound(sound['filepath'])
+                new_sound.set_volume(sound['volume'])
+                sounds.append(pygame.mixer.Sound(new_sound))
             newDict = {'key': soundPack['key'],'isMusic': soundPack['isMusic'], 'sounds': sounds}
             list.append(newDict)
         return list
 
-    def createSoundPackDict(self, soundLists):
+    def createPygameSounds(self, all_sounds):
         dict = {}
-        for soundList in soundLists:
+        for i in range(len(all_sounds)):
+            sound = all_sounds[i]
             sounds = []
-            for file in soundList['filePath']:
-                sd = pygame.mixer.Sound(file)
-                sd.set_volume(1)
+            for file in sound['soundlist']:
+                sd = pygame.mixer.Sound(file['filepath'])
+                sd.set_volume(file['volume'])
                 sounds.append(sd)
-            soundPack = SoundPack(soundList['isMusic'], sounds)
-            dict[soundList['key']] = soundPack
+            dict[sound['key']] = SoundPack(sound['isMusic'], sounds, i)
         return dict
 
-    #  Navigation Methods
-
-    def rewindFromKeySetScreen(self):
-        self.soundPackDict = self.createSoundPackDict(self.rvk.data)
-        self.bindKeyboard(True)
-
-    # FileChooser Methods
+    # MARK: FileChooser Methods
     def dismiss_popup(self):
         self._popup.dismiss()
 
     def show_load(self):
         content = LoadTarDialog(load=self.loadArchive, cancel=self.dismiss_popup)
-        self._popup = Popup(title="Load file", content=content,
+        self._popup = Popup(title="Load Project", content=content,
                             size_hint=(0.9, 0.9))
         self._popup.open()
 
     def show_save(self):
         content = SaveDialog(save=self.createArchive, cancel=self.dismiss_popup)
-        self._popup = Popup(title="Save file", content=content,
+        self._popup = Popup(title="Create Project", content=content,
                             size_hint=(0.9, 0.9))
         self._popup.open()
 
-    def saveAndUnloadCurrentArchive(self):
+    def save_archive(self):
+        self.tarfileHandler.overwriteTarWithTemp()
+
+    def unload_archive(self):
         # Overwrite the current tarfile with the content of tempDir
         # Delete all loaded data
         self.rvk.data = []
         self.rv.data = []
-
-        self.tarfileHandler.overwriteTarWithTemp()
         self.tarfileHandler.deleteDir(self.tarfileHandler.tempDir)
 
-
-
-
-    def loadArchive(self, filename):
-        '''
-        fetch data with given file path, if succeeded then clean the last load feed with loaded data, else give up and
-        pop up a warning.
-
-        :param filename:
-        :return:
-        None
-        '''
-
-        # Overwrite the current tarfile with the content of tempDir
-
-        fullPath = filename[0]
-        showData = self.fetchDataFromArchive(fullPath)
-
-        if showData:
-            self.saveAndUnloadCurrentArchive()
-
-            # Feed with fetch data
-            imgPath = os.path.join(showData.tempDir, 'img')
-            bgmPath = os.path.join(showData.tempDir, 'bgm')
-
-            self.stageSetScreen.filechooserRoot = imgPath
-            self.keySetScreen.filechooserRoot = bgmPath
-            self.rv.data = showData.imgData
-            self.rv.saveByPath()
-            self.rvk.data = showData.bgmData
-            self.rvk.saveByPath()
-            self.soundPackDict = self.createSoundPackDict(self.rvk.data)
-            self.tarfileHandler.tempDir = showData.tempDir
-            self.tarfileHandler.tarFilePath = showData.tarFile
-        else:
-            print('Failed loading data from archive!')
-
-        self.dismiss_popup()
-
-    def fetchDataFromArchive(self, filename):
-        '''
-        :param filename:
-        :return:
-            None: If fetch was not successful
-            showData(): If fetch was successful
-        '''
-
-        tempDir = self.tarfileHandler.extractTarToTemp(filename)
-        if not tempDir:  # if tempDir is not None then extraction was successful
-            print('Invalid file, failed to load!')
-            return
-
-        imgPath = os.path.join(tempDir, 'img')
-        bgmPath = os.path.join(tempDir, 'bgm')
-        imgDataFile = os.path.join(imgPath, 'data.txt')
-        bgmDataFile = os.path.join(bgmPath, 'data.txt')
-        imgData = self.loadByPath(imgDataFile)
-        bgmData = self.loadByPath(bgmDataFile)
-
-        if imgData:
-            imgData = self.replaceRootpath(imgPath,imgData)
-
-            # Add enterBGM if missing, data of old version has no enterBGM
-            for el in imgData:
-                if not 'enterBGM' in el: # this element does not have the key 'enterBGM'
-                    el['enterBGM'] = ''
-        else:
-            imgData = []
-            print('Failed loading img data.txt')
-
-        if bgmData:
-            bgmData = self.replaceRootpath(bgmPath,bgmData)
-
-            # Add volume if missing, data of old version has no enterBGM
-            for el in bgmData:
-                if not 'volume' in el: # this element does not have the key 'enterBGM'
-                    el['volume'] = 1
-
-        else:
-            bgmData = [{'key':'1','name':'bgm1','isMusic':True,'filePath': [], 'volume': 1},
-                             {'key':'2','name':'bgm2','isMusic':True,'filePath': [], 'volume': 1},
-                             {'key':'3','name':'bgm3','isMusic':True,'filePath': [], 'volume': 1},
-                             {'key':'4','name':'bgm4','isMusic':True,'filePath': [], 'volume': 1},
-                             {'key':'5','name':'bgm5','isMusic':True,'filePath': [], 'volume': 1},
-                             {'key':'6','name':'bgm6','isMusic':True,'filePath': [], 'volume': 1},
-                             {'key':'7','name':'bgm7','isMusic':True,'filePath': [], 'volume': 1},
-                             {'key':'8','name':'bgm8','isMusic':True,'filePath': [], 'volume': 1},
-                             {'key':'9','name':'bgm9','isMusic':True,'filePath': [], 'volume': 1},
-                             {'key':'10','name':'bgm10','isMusic':True,'filePath': [], 'volume': 1},
-                             {'key':'a','name':'sound1','isMusic':False,'filePath': [], 'volume': 1},
-                             {'key':'s','name':'sound2','isMusic':False,'filePath': [], 'volume': 1},
-                             {'key':'d','name':'sound3','isMusic':False,'filePath': [], 'volume': 1},
-                             {'key':'f','name':'sound4','isMusic':False,'filePath': [], 'volume': 1},
-                             {'key':'g','name':'sound5','isMusic':False,'filePath': [], 'volume': 1},
-                             {'key':'y','name':'sound6','isMusic':False,'filePath': [], 'volume': 1},
-                             {'key':'x','name':'sound7','isMusic':False,'filePath': [], 'volume': 1},
-                             {'key':'c','name':'sound8','isMusic':False,'filePath': [], 'volume': 1},
-                             {'key':'v','name':'sound9','isMusic':False,'filePath': [], 'volume': 1},
-                             {'key':'b','name':'sound10','isMusic':False,'filePath': [], 'volume': 1}]
-            print('Failed loading bgm data.txt')
-
-        return showData(tempDir, filename, imgData, bgmData)
-
-
-    def loadByPath(self, filePath):
-        try:
-            with open(filePath) as json_file:
-                return json.load(json_file)
-        except:
-            print('Failed to load file: ' + filePath)
-        finally:
-            pass
-
-    def replaceRootpath(self,root,data):
-        for el in data:
-            filePathEle = el['filePath']
-            if isinstance(filePathEle, list):
-                newFilePathEle = []
-                for filePath in filePathEle:
-                    baseName = os.path.basename(filePath)
-                    newFilePathEle.append(os.path.join(root, baseName))
-                    el['filePath'] = newFilePathEle
-            else:
-                baseName = os.path.basename(filePathEle)
-                newFilePathEle = os.path.join(root, baseName)
-                el['filePath'] = newFilePathEle
-        return data
-
+    #MARK: Load project (saved as .tar files) methods, to rework, can by integrated into TarfileHandler.py?
     def createArchive(self, path, filename):
         '''
         try to copy the template.tar to target filepath, if fail then give up and pop up warning
@@ -400,13 +307,162 @@ class StageShow(Screen, Widget, RVKeyboardDelegate):
             shutil.copyfile(template, fullPath)
         except IOError as e:
             print("Unable to copy file. %s" % e)
+            # Rework: message box to be added
             return
         except:
             print("Unexpected error:", os.sys.exc_info())
+            # Rework: message box to be added
             return
 
-        # If copy suceeded then load the archive, here if loading failed
+        # If copy suceeded then load the new copy of template.tar
         self.loadArchive([fullPath])
+
+    def loadArchive(self, filename):
+        '''
+        load project images and sounds with given file path, if succeeded then clean the last loaded project, else give up and
+        pop up a warning.
+
+        :param filename:
+        :return:
+        None
+        '''
+
+        # Overwrite the current tarfile with the content of tempDir
+
+        self.save_archive()
+
+        fullPath = filename[0]
+        showData = self.parse_archive(fullPath)
+        #print('showdata is: ' + str(showData))
+
+        if showData:
+            self.unload_archive()  # unload the current project
+
+            # Feed with fetch data
+            imgPath = os.path.join(showData.tempDir, 'img')
+            bgmPath = os.path.join(showData.tempDir, 'bgm')
+            print('imgPath is: ' + imgPath)
+            print('bgmPath is: ' + bgmPath)
+            print('imgData is: ' + str(showData.imgData))
+            print('bgmData is: ' + str(showData.bgmData))
+
+            self.stageSetScreen.filechooserRoot = imgPath
+            self.keySetScreen.filechooserRoot = bgmPath
+            self.rv.data = showData.imgData
+            self.rv.saveByPath()
+            self.rvk.data = showData.bgmData
+            self.rvk.saveByPath()
+            self.soundPackDict = self.createPygameSounds(self.rvk.data)
+            self.tarfileHandler.tempDir = showData.tempDir
+            self.tarfileHandler.tarFilePath = showData.tarFile
+        else:
+            print('Failed loading data from archive!')
+
+        self.dismiss_popup()
+
+    def parse_archive(self, filename):
+        '''
+        load data images and sounds
+        only for internal use,
+        :param filename:
+        :return:
+            None: If fetch was not successful
+            showData(): If fetch was successful
+        '''
+
+        tempDir = self.tarfileHandler.extractTarToTemp(filename)
+        if not tempDir:  # if tempDir is not None then extraction was successful
+            print('Invalid file, failed to load!')
+            return
+
+        imgPath = os.path.join(tempDir, 'img')
+        bgmPath = os.path.join(tempDir, 'bgm')
+        imgDataFile = os.path.join(imgPath, 'data.txt')
+        bgmDataFile = os.path.join(bgmPath, 'data.txt')
+        imgData = self.loadAsJson(imgDataFile)
+        bgmData = self.loadAsJson(bgmDataFile)
+
+        if imgData:
+            imgData = self.correct_img_rootpath(imgPath,imgData)
+
+            # Add enterBGM if missing, data of old version has no enterBGM
+            for el in imgData:
+                if not 'enterBGM' in el: # this element does not have the key 'enterBGM'
+                    el['enterBGM'] = ''
+        else:
+            imgData = []
+            print('Failed loading img data.txt')
+
+        if bgmData:
+            bgmData = self.correct_sound_rootpath(bgmPath,bgmData)
+
+            # Add volume if missing, data of old version has no enterBGM
+            for el in bgmData:
+                if not 'volume' in el: # this element does not have the key 'enterBGM'
+                    el['volume'] = 1
+
+        else:
+            bgmData = [{'key':'1','name':'bgm1','isMusic':True,'soundlist': []},
+                        {'key':'2','name':'bgm2','isMusic':True,'soundlist': []},
+                        {'key':'3','name':'bgm3','isMusic':True,'soundlist': []},
+                        {'key':'4','name':'bgm4','isMusic':True,'soundlist': []},
+                        {'key':'5','name':'bgm5','isMusic':True,'soundlist': []},
+                        {'key':'6','name':'bgm6','isMusic':True,'soundlist': []},
+                        {'key':'7','name':'bgm7','isMusic':True,'soundlist': []},
+                        {'key':'8','name':'bgm8','isMusic':True,'soundlist': []},
+                        {'key':'9','name':'bgm9','isMusic':True,'soundlist': []},
+                        {'key':'10','name':'bgm10','isMusic':True,'soundlist': []},
+                        {'key':'a','name':'sound1','isMusic':False,'soundlist': []},
+                        {'key':'s','name':'sound2','isMusic':False,'soundlist': []},
+                        {'key':'d','name':'sound3','isMusic':False,'soundlist': []},
+                        {'key':'f','name':'sound4','isMusic':False,'soundlist': []},
+                        {'key':'g','name':'sound5','isMusic':False,'soundlist': []},
+                        {'key':'y','name':'sound6','isMusic':False,'soundlist': []},
+                        {'key':'x','name':'sound7','isMusic':False,'soundlist': []},
+                        {'key':'c','name':'sound8','isMusic':False,'soundlist': []},
+                        {'key':'v','name':'sound9','isMusic':False,'soundlist': []},
+                        {'key':'b','name':'sound10','isMusic':False,'soundlist': []}]
+            print('Failed loading bgm data.txt')
+
+        return showData(tempDir, filename, imgData, bgmData)
+
+
+    def loadAsJson(self, filePath):
+        try:
+            with open(filePath) as json_file:
+                return json.load(json_file)
+        except:
+            print('Failed to load file: ' + filePath)
+        finally:
+            pass
+
+    def correct_sound_rootpath(self,root,data):
+        '''
+        replace the file paths saved in data.txt with the new temp directory
+        :param root:
+        :param data:
+        :return:
+        '''
+        for el in data:
+            soundlist = el['soundlist']
+            for sub_sound in soundlist:
+                base_name = os.path.basename(sub_sound['filepath'])
+                new_path = os.path.join(root, base_name)
+                sub_sound['filepath'] = new_path
+                #newFilePathEle.append(os.path.join(root, baseName))
+                #el['filePath'] = newFilePathEle
+        return data
+
+    def correct_img_rootpath(self,root,data):
+        for el in data:
+            filepath = el['filePath']
+
+            base_name = os.path.basename(filepath)
+            new_path = os.path.join(root, base_name)
+            el['filePath'] = new_path
+            #newFilePathEle.append(os.path.join(root, baseName))
+            #el['filePath'] = newFilePathEle
+        return data
 
     def copy(self, source, target):
         #source = '/Users/diqingchang/PycharmProjects/StageShowImageSound/img/mini.jpg'
@@ -424,11 +480,11 @@ class StageShow(Screen, Widget, RVKeyboardDelegate):
         except:
             print("Unexpected error:", os.sys.exc_info())
 
-
     def cleanup(self):
-        self.saveAndUnloadCurrentArchive()
+        self.save_archive()
+        self.unload_archive()
 
-    # RVK Delegate Methods
+    # MARK: RVK Delegate Methods
     def rvkeyboard_cell_on_touch_down(self, rvkCell, touch):
 
         if self.inTouchDown:  # if cell selected before touch up, cell will be picked and information saved in self.ic
@@ -437,7 +493,7 @@ class StageShow(Screen, Widget, RVKeyboardDelegate):
             self.ic.name = rvkCell.name
             self.keySelected = True
 
-    # RV Delegate Methods
+    # MARK: RV Delegate Methods
     def on_rvcelltouch_up(self, rvCell):
         index = rvCell.index
 
@@ -445,12 +501,12 @@ class StageShow(Screen, Widget, RVKeyboardDelegate):
             self.rv.editElementByIndex(index = index, filePath= None, enterBGMKey=self.ic.key)
             self.ic.key = '##'
 
-
-class SoundPack():
-
-    def __init__(self, isMusic, sounds):
-            self.isMusic = isMusic  # Bool
-            self.sounds = sounds  # [pygame.mixer.Sound(file)]
+    # MARK: DropDown Delegate Methods
+    def dropdown_item_selected(self, item_id):
+        if item_id == 'create':
+            self.show_save()
+        elif item_id == 'load':
+            self.show_load()
 
 class StageShowApp(App):
     def build(self):

@@ -1,0 +1,13 @@
+#:kivy 1.10.1
+
+<CustomDropDown>:
+    Button:
+        text: 'create'
+        size_hint_y: None
+        height: 44
+        on_release: root.select_item('create')
+    Button:
+        text: 'load'
+        size_hint_y: None
+        height: 44
+        on_release: root.select_item('load')

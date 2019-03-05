@@ -1,0 +1,58 @@
+#:kivy 1.10.1
+
+<RVKeyboard>:
+    viewclass: 'rvkLabel'
+    SelectableRecycleGridLayout:
+        rows: 2
+        default_size: dp(80), dp(80)  # 80, 80
+        default_size_hint: None, None #  None, None
+        key_selection: 'selectable'
+        #padding: 20, 20
+        #spacing: 50,50
+        size_hint_x: None
+        width: self.minimum_width
+        height: self.minimum_height
+        orientation: 'horizontal'
+        multiselect: False
+        touch_multiselect: False
+
+<rvkLabel>:
+    # properties
+    filePath: []
+    key: ''
+    name: ''
+
+    BoxLayout:
+        padding: 4,4
+        orientation: 'vertical'
+        size: root.width*0.9, root.height*0.9
+        center: root.center
+
+        canvas.before:
+            Color:
+                rgba: (.0,191/255, 1, .8)
+            Line:
+                width: 2
+                rectangle: self.x, self.y, self.width, self.height
+
+            Color:
+                rgba: (.0, 0.9, 1, .2) if root.selected else (0, 0, 0, 1)
+            Rectangle:
+                pos: self.pos
+                size: self.size
+
+        Label:
+            text: root.key
+            halign: 'left'
+            color: (.0,191/255, 1, .8)
+            #size: root.width, 20
+            size_hint: 0.3, 0.3
+
+
+        Label:
+            text: root.name
+            text_size: self.width, self.height
+            color: (.0,191/255, 1, 1)
+            halign: 'center'
+            valign: 'center'
+            size_hint: 1,0.7

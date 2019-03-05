@@ -96,12 +96,12 @@ class TarfileHandler():
 
 
 if __name__ == "__main__":
-    thisTar = 'test.tar'
+    thisTar = './source/template.tar'
     tarfileHandler = TarfileHandler()
     print(tarfileHandler.extractTarToTemp(thisTar))
     print(tarfileHandler.tempDir)
     print(tarfileHandler.tarFilePath)
-    tarfileHandler.overwriteTarWithTemp()
-    tarfileHandler.createTempDir()
+    #tarfileHandler.overwriteTarWithTemp()
+    #tarfileHandler.createTempDir()
     #tarfileHandler.createTar('test.tar')
-    print(tarfileHandler.tempDir)
+    #print(tarfileHandler.tempDir)
